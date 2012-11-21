@@ -1,8 +1,10 @@
 #!/usr/bin/perl
-use LWP::Simple;
+use LWP 5.64;
+use JSON;
 
 # Declare vars
-my $url = 'http://user:pass@127.0.0.1:8000/xbmcCmds/xbmcHttp?command=getcurrentlyplaying';
+my $browser = LWP::UserAgent->new;
+my $url = 'http://xbmc:xbmc@127.0.0.1:8000/jsonrpc?request={"jsonrpc":"2.0","method":"Player.GetItem","params":{"playerid":1,"properties":["title","year","director","studio","season","episode","showtitle"]},"id":1}';
 my $showtitle;
 my $title;
 my $season;
@@ -22,39 +24,32 @@ sub initXBMC {
 
 sub xbmc {
   # Get information from XBMC
-  my $content = get $url;	
-  die "get failed" if (!defined $content);
+  $response = $browser->get($url);
+  die "post failed" if (!defined $response);
+  my $json_text = $response->content;
 
+  $json = JSON->new->allow_nonref;
+  $perl_scalar = $json->decode($json_text);
+  # $pretty_printed = $json->pretty->encode( $perl_scalar );
+  # print $pretty_printed;
+  
   # Get now playing
-  if($content =~ m/<li>Show Title:(.*)/) {
-	$showtitle = $1;
-	}
-  if($content =~ m/<li>Season:(.*)/) {
-	$season = $1;
-	}
-  if($content =~ m/<li>Episode:(.*)/) {
-	$episode = $1;
-	}
-  if($content =~ m/<li>Title:(.*)/) {
-	$title = $1;
-	}
-  if($content =~ m/<li>Year:(.*)/) {
-	$year = $1;
-	}
-  if($content =~ m/<li>Director:(.*)/) {
-	$director = $1;
-	}
-  if($content =~ m/<li>Studio:(.*)/) {
-	$studio = $1;
-	}
+	$showtitle = $perl_scalar->{'result'}->{'item'}->{'showtitle'};
+	$season = $perl_scalar->{'result'}->{'item'}->{'season'};
+	$episode = $perl_scalar->{'result'}->{'item'}->{'episode'};
+	$title = $perl_scalar->{'result'}->{'item'}->{'title'};
+	$year = $perl_scalar->{'result'}->{'item'}->{'year'};
+	$director = $perl_scalar->{'result'}->{'item'}->{'director'}->[0];
+	$studio = $perl_scalar->{'result'}->{'item'}->{'studio'}->[0];
+
 
   # Set NP var
-  if (defined $showtitle){
-	$np = $showtitle . " - " . $season . "x" . $episode . " - " . $title. " [" . $studio . "]";
-	} else {
-	$np = $title . " (" . $year . ") by " . $director . " [" . $studio . "]";
-	}
-
+  if ($season > 0){
+    $np = $showtitle . " - " . $season . "x" . $episode . " - " . $title. " [" . $studio . "]";
+    } else {
+    $np = $title . " (" . $year . ") by " . $director . " [" . $studio . "]";
+    }
+  
   # Unset vars
   undef $title;
   undef $showtitle;
@@ -63,7 +58,8 @@ sub xbmc {
   undef $year;
   undef $director;
   undef $studio;
-
+  undef $type;
+  
   # Output to active window in xchat
   if (defined $np){		
 	Xchat::command("me np: $np");
