@@ -3,17 +3,19 @@ use LWP 5.64;
 use JSON;
 
 # Declare vars
-my $browser = LWP::UserAgent->new;
-my $url = 'http://xbmc:xbmc@127.0.0.1:8000/jsonrpc?request={"jsonrpc":"2.0","method":"Player.GetItem","params":{"playerid":1,"properties":["title","year","director","studio","season","episode","showtitle"]},"id":1}';
-my $showtitle;
-my $title;
-my $season;
-my $episode;
-my $year;
-my $director;
-my $studio;
-my $np;
 my $xmbc_version = 1;
+my $browser = LWP::UserAgent->new;
+my $url = 'http://xbmc:xbmc@127.0.0.1:8000/jsonrpc?request={
+    "jsonrpc":"2.0",
+    "method":"Player.GetItem",
+    "params":{
+      "playerid":1,
+      "properties":["title","year","director","studio","season","episode","showtitle","firstaired","streamdetails"]
+      },
+    "id":1
+    }';
+
+
 
 initXBMC();
 
@@ -23,10 +25,10 @@ sub initXBMC {
 }
 
 sub xbmc {
-  # Get information from XBMC
+  # Get information from XBMC  
   $response = $browser->get($url);
   die "post failed" if (!defined $response);
-  my $json_text = $response->content;
+  $json_text = $response->content;
 
   $json = JSON->new->allow_nonref;
   $perl_scalar = $json->decode($json_text);
@@ -35,32 +37,26 @@ sub xbmc {
   
   # Get now playing
 	$showtitle = $perl_scalar->{'result'}->{'item'}->{'showtitle'};
+  $firstaired = $perl_scalar->{'result'}->{'item'}->{'firstaired'};
 	$season = $perl_scalar->{'result'}->{'item'}->{'season'};
 	$episode = $perl_scalar->{'result'}->{'item'}->{'episode'};
 	$title = $perl_scalar->{'result'}->{'item'}->{'title'};
 	$year = $perl_scalar->{'result'}->{'item'}->{'year'};
 	$director = $perl_scalar->{'result'}->{'item'}->{'director'}->[0];
 	$studio = $perl_scalar->{'result'}->{'item'}->{'studio'}->[0];
-
+  $audiocodec = $perl_scalar->{'result'}->{'item'}->{'streamdetails'}->{'audio'}->[0]->{'codec'};
+  $videocodec = $perl_scalar->{'result'}->{'item'}->{'streamdetails'}->{'video'}->[0]->{'codec'};
+  $width = $perl_scalar->{'result'}->{'item'}->{'streamdetails'}->{'video'}->[0]->{'width'};
+  $height = $perl_scalar->{'result'}->{'item'}->{'streamdetails'}->{'video'}->[0]->{'height'};
 
   # Set NP var
   if ($season > 0){
-    $np = $showtitle . " - " . $season . "x" . $episode . " - " . $title. " [" . $studio . "]";
+    $np = $showtitle . " - " . $season . "x" . $episode . " - " . $title. " | Studio: " . $studio . " - Aired on " . $firstaired . " - Audio: " . $audiocodec . " - Video: " . $videocodec . " @ " . $width . "x" . $height;
     } else {
-    $np = $title . " (" . $year . ") by " . $director . " [" . $studio . "]";
+    $np = $title . " (" . $year . ") by " . $director . " |  Audio: " . $audiocodec . " - Video: " . $videocodec . " @ " . $width . "x" . $height;
     }
   
-  # Unset vars
-  undef $title;
-  undef $showtitle;
-  undef $season;
-  undef $episode;
-  undef $year;
-  undef $director;
-  undef $studio;
-  undef $type;
-  
-  # Output to active window in xchat
+  # Output to active window in hexchat
   if (defined $np){		
 	Xchat::command("me np: $np");
 	}
